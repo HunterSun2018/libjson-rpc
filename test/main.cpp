@@ -9,6 +9,7 @@ int main(int argc, const char *argv[])
 {
     test();
 }
+
 void test()
 {
     //std::tuple t{42, 10, 4.2}; // Another C++17 feature: class template argument deduction
@@ -36,11 +37,9 @@ void test()
     // server.call("add", 1, 2, 3);
     // server.call("sub", 10, 6);
     // server.call("hello", "Hello C++ 17");
-
     rpc::client client;
     
     auto obj = client.call("add", 1, 2, 3);
     
     server->exec(obj.first, obj.second);
-
 }
