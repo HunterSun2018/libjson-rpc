@@ -27,7 +27,7 @@ void test()
         cout << __func__ << " : " << s << endl;
         return s;
     };
-
+   
     auto  server = rpc::server::create();
 
     server->add_handler("add", add);

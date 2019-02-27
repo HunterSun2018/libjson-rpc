@@ -6,10 +6,25 @@
         {
             "label": "build",
             "type": "shell",
-            "command": "cd build;make;./cp2bin.sh",
+            "command": "cd build && make && ./cp2bin.sh",
             "group": {
                 "kind": "build",
                 "isDefault": true
+            },            
+            "problemMatcher": {
+                "owner": "cpp",
+                "fileLocation": [
+                    "relative",
+                    "${workspaceRoot}/build/src"
+                ],
+                "pattern": {
+                    "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
+                    "file": 1,
+                    "line": 2,
+                    "column": 3,
+                    "severity": 4,
+                    "message": 5
+                }
             }
         }
     ]
