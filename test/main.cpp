@@ -1,5 +1,6 @@
 #include <iostream>
-#include <rpc_server.hpp>
+#include "rpc_server.hpp"
+#include "rpc_client.hpp"
 
 using namespace std;
 
@@ -28,7 +29,7 @@ void test()
         return s;
     };
 
-    auto  server = rpc::server::create();
+    auto  server = rpc::server::create(8500);
 
     server->add_handler("add", add);
     server->add_handler("sub", sub);
@@ -37,9 +38,11 @@ void test()
     // server.call("add", 1, 2, 3);
     // server.call("sub", 10, 6);
     // server.call("hello", "Hello C++ 17");
-    rpc::client client;
+    auto client = rpc::client::create();
     
-    auto obj = client.call("add", 1, 2, 3);
+    client->connect("localhost", 8500);
+
+    auto obj = client->call("add", 1, 2, 3);
     
     server->exec(obj.first, obj.second);
 }

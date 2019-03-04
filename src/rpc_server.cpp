@@ -117,9 +117,9 @@ class session : public std::enable_shared_from_this<session>
 class server_imp : public server
 {
   public:
-    server_imp()
+    server_imp(unsigned short port = default_listen_port)
         : m_socket(m_io_service),
-          m_acceptor(m_io_service, tcp::endpoint(tcp::v4(), default_listen_port)), //default, listen port 8500
+          m_acceptor(m_io_service, tcp::endpoint(tcp::v4(), port)), //default, listen port 8500
           //m_mine_pool(bind(&create_http_client, &m_io_service), "", ""),           //defalut data dir
           m_timer(m_io_service, boost::posix_time::seconds(timer_interval))
     {
@@ -129,9 +129,7 @@ class server_imp : public server
     {
     }
 
-    virtual bool init(unsigned short port,                 //server listening port
-                      const std::string &network_node_url, //node rpc url
-                      const std::string &user_pwd)         //user:pwd
+    virtual bool listen(unsigned short port)         //user:pwd
     {
         tcp::endpoint endpoint(tcp::v4(), port);
 
@@ -140,9 +138,7 @@ class server_imp : public server
         m_acceptor = tcp::acceptor(m_io_service, endpoint);
 
         BOOST_LOG_TRIVIAL(info) << DEBUGGING_STRING
-                                << "\n  Server init, port = " << port
-                                << "\n  Network node url = " << network_node_url
-                                << "\n  User:pwd = " << user_pwd
+                                << "\n  Server init, port = " << port                                
                                 << endl;
 
         return true;
@@ -203,9 +199,9 @@ class server_imp : public server
     deadline_timer m_timer;
 };
 
-server_ptr rpc::server::create()
+server_ptr rpc::server::create(unsigned short port)
 {
-    return make_shared<rpc::server_imp>();
+    return make_shared<rpc::server_imp>(port);
 }
 
 } // namespace rpc

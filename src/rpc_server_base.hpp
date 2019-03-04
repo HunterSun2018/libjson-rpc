@@ -23,6 +23,8 @@ namespace rpc
 class server_base
 {
   public:
+    virtual ~server_base() {}
+
     template <typename TFunc>
     void add_handler(std::string id, TFunc func)
     {
@@ -66,7 +68,7 @@ class server_base
         }
     }
 
-    auto exec(const std::string & id, const std::string & serialization )
+    auto exec(const std::string &id, const std::string &serialization)
     {
         auto iter = m_handlers.find(id);
 
@@ -81,11 +83,13 @@ class server_base
     std::map<std::string, handler_type> m_handlers;
 };
 
-class client
+class client_base
 {
   public:
+    virtual ~client_base() {}
+    
     template <typename... T>
-    auto call(const std::string & id, T... args)
+    auto call(const std::string &id, T... args)
     {
         std::ostringstream oss;
 
@@ -96,7 +100,5 @@ class client
 };
 
 } // namespace rpc
-
-
 
 #endif
