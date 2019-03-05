@@ -106,13 +106,15 @@ class client_base
         //return R();
     }
 
-    template <typename Func, typename... T>
-    void async_call(Func f, const std::string &id, T... args)
+    template <class Tuple,typename Func>
+    void async_call(const std::string &id, Tuple && t, Func && f)
     {
         std::ostringstream oss;
 
-        ((oss << args << " "), ...);
+        //((oss << args << " "), ...);
+        std::apply([&](auto & ... args){ ((oss << args << " "), ...); }, t);
 
+        std::cout << oss.str() << std::endl;
         //return std::make_pair(id, oss.str());
     }
 };

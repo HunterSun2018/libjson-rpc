@@ -50,5 +50,7 @@ void test()
 
     auto obj = client->call("add", 1, 2, 3);
 
+    client->async_call("add", make_tuple(1, 2, 3), []() { });
+    
     //server->exec(obj.first, obj.second);
 }
