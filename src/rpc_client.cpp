@@ -10,24 +10,28 @@ namespace rpc
 {
 class client_imp : public client
 {
-    public:
-    virtual ~client_imp() { }
+  public:
+    virtual ~client_imp() {}
 
-    virtual void connect(std::string ip, unsigned short port )
+    client_imp(std::string ip, unsigned short port)
     {
-        //tcp::endpoint endpoint(ip, port);
-
+        connect(ip, port);
     }
 
     void async_connect(std::string ip, unsigned short port)
     {
+    }
 
-    }    
+  protected:
+    void connect(std::string ip, unsigned short port)
+    {
+        //tcp::endpoint endpoint(ip, port);
+    }
 };
 
-std::shared_ptr<client> client::create()
+std::shared_ptr<client> client::create(std::string ip, unsigned short port)
 {
-    return make_shared<client_imp>();
+    return make_shared<client_imp>(ip, port);
 }
 
-}
+} // namespace rpc

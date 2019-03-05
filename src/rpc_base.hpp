@@ -88,6 +88,12 @@ class client_base
   public:
     virtual ~client_base() {}
     
+    template<typename T>
+    struct response 
+    {
+
+    };
+
     template <typename... T>
     auto call(const std::string &id, T... args)
     {
@@ -96,6 +102,18 @@ class client_base
         ((oss << args << " "), ...);
 
         return std::make_pair(id, oss.str());
+
+        //return R();
+    }
+
+    template <typename Func, typename... T>
+    void async_call(Func f, const std::string &id, T... args)
+    {
+        std::ostringstream oss;
+
+        ((oss << args << " "), ...);
+
+        //return std::make_pair(id, oss.str());
     }
 };
 

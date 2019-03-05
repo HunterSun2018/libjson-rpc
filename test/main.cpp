@@ -46,11 +46,9 @@ void test()
     // server.call("add", 1, 2, 3);
     // server.call("sub", 10, 6);
     // server.call("hello", "Hello C++ 17");
-    auto client = rpc::client::create();
-
-    client->connect("localhost", 8500);
+    auto client = rpc::client::create("localhost", 8500);
 
     auto obj = client->call("add", 1, 2, 3);
 
-    server->exec(obj.first, obj.second);
+    //server->exec(obj.first, obj.second);
 }
