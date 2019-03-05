@@ -2,7 +2,7 @@
 #define STRATUM_SERVER_H
 
 #include "std.hpp"
-#include "rpc_server_base.hpp"
+#include "rpc_base.hpp"
 
 namespace rpc
 {

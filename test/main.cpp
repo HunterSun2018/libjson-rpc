@@ -8,7 +8,15 @@ void test();
 
 int main(int argc, const char *argv[])
 {
-    test();
+    try
+    {
+        test();
+        
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << e.what() << '\n';
+    }
 }
 
 void test()
@@ -29,20 +37,20 @@ void test()
         return s;
     };
 
-    auto  server = rpc::server::create(8500);
+    auto server = rpc::server::create(8500);
 
     server->add_handler("add", add);
     server->add_handler("sub", sub);
     server->add_handler("hello", hello);
-    
+
     // server.call("add", 1, 2, 3);
     // server.call("sub", 10, 6);
     // server.call("hello", "Hello C++ 17");
     auto client = rpc::client::create();
-    
+
     client->connect("localhost", 8500);
 
     auto obj = client->call("add", 1, 2, 3);
-    
+
     server->exec(obj.first, obj.second);
 }

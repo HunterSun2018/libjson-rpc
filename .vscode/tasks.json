@@ -10,11 +10,7 @@
             "group": {
                 "kind": "build",
                 "isDefault": true
-<<<<<<< HEAD
-            },
-=======
             },            
->>>>>>> edeb561919b340ceb0325f3dcdc71116900c9a0d
             "problemMatcher": {
                 "owner": "cpp",
                 "fileLocation": [

@@ -1,8 +1,6 @@
 #ifndef RPC_CLIENT_H
 #define RPC_CLIENT_H
-#include "rpc_server_base.hpp"
-#include <string>
-//#include <memory>
+#include "rpc_base.hpp"
 
 namespace rpc
 {
