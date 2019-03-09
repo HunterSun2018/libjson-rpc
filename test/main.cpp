@@ -11,7 +11,6 @@ int main(int argc, const char *argv[])
     try
     {
         test();
-        
     }
     catch (const std::exception &e)
     {
@@ -28,9 +27,9 @@ void test()
     auto add = [](int a, int b, int c) -> int { 
         cout << __func__ << " : "<< a + b  + c << endl;
         return a + b + c; };
-    auto sub = [](int a, int b) {
-        cout << __func__ << " : " << a - b << endl;
-        return a - b;
+    auto sub = [](const string & a, int b) {
+        cout << __func__ << " : " << a << b << endl;
+        return b;
     };
     auto hello = [](string s) {
         cout << __func__ << " : " << s << endl;
@@ -48,9 +47,15 @@ void test()
     // server.call("hello", "Hello C++ 17");
     auto client = rpc::client::create("localhost", 8500);
 
-    auto obj = client->call("add", 1, 2, 3);
+    auto ret = client->call(0, "add", 1, 2, "3", string("4"), 5.0f);
 
-    client->async_call("add", make_tuple(1, 2, 3), []() { });
-    
+    cout << ret << endl;
+
+    auto ret1 = client->call(0, "sub", make_pair("name", "tom"), make_pair("age", 10));
+
+    cout << ret1 << endl;
+
+    //client->async_call("add", make_tuple(1, 2, 3), []() { });
+
     //server->exec(obj.first, obj.second);
 }

@@ -2,6 +2,7 @@
 #define RPC_SERVER_H
 
 #include "std.hpp"
+#include "serialization.hpp"
 
 namespace detail
 {
@@ -57,7 +58,7 @@ class server_base
     auto call(std::string id, T... args)
     {
         std::ostringstream oss;
-
+        
         ((oss << args << " "), ...);
 
         auto iter = m_handlers.find(id);
@@ -87,36 +88,63 @@ class client_base
 {
   public:
     virtual ~client_base() {}
-    
-    template<typename T>
-    struct response 
-    {
 
+    template <typename T>
+    struct response
+    {
     };
 
     template <typename... T>
-    auto call(const std::string &id, T... args)
+    auto call(uint32_t id, const std::string &method, T... args)
     {
-        std::ostringstream oss;
+        //std::ostringstream oss;
+        json_stream js(id, method);
 
-        ((oss << args << " "), ...);
+        ((js << args), ...);
 
-        return std::make_pair(id, oss.str());
+        write(js.to_string());
 
-        //return R();
+        read();
+
+        return "";
     }
 
-    template <class Tuple,typename Func>
-    void async_call(const std::string &id, Tuple && t, Func && f)
+    template <class Tuple, typename Func>
+    void async_call(uint32_t id, const std::string &method, Tuple &&t, Func &&f)
     {
         std::ostringstream oss;
 
         //((oss << args << " "), ...);
-        std::apply([&](auto & ... args){ ((oss << args << " "), ...); }, t);
+        std::apply([&](auto &... args) { ((oss << args << " "), ...); }, t);
 
-        std::cout << oss.str() << std::endl;
+        async_write(oss.str());
+
+        async_read();
         //return std::make_pair(id, oss.str());
+
+        f();
     }
+
+  protected:
+    /**
+     *  send request to server
+     */
+    virtual void write(std::string request) = 0;
+
+    /**
+     *  send request to server
+     */
+    virtual void async_write(std::string request) = 0;
+
+    /**
+     *  read the response from server
+     */
+    virtual std::string read() = 0;
+
+    /**
+     *  read the response from server
+     */
+    virtual void async_read() = 0;
 };
 
 } // namespace rpc
