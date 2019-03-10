@@ -13,17 +13,16 @@ class client_imp : public client
 public:
   virtual ~client_imp() {}
 
-  client_imp(std::string ip, unsigned short port)
+  client_imp()
   {
-    connect(ip, port);
   }
 
-  void connect(std::string ip, unsigned short port)
+  virtual void connect(const std::string &ip, unsigned short port)
   {
     //tcp::endpoint endpoint(ip, port);
   }
 
-  void async_connect(std::string ip, unsigned short port)
+  virtual void async_connect(const std::string &ip, unsigned short port)
   {
   }
 
@@ -35,7 +34,6 @@ protected:
 
   virtual void async_write(std::string request)
   {
-
   }
 
   virtual std::string read()
@@ -45,13 +43,12 @@ protected:
 
   virtual void async_read()
   {
-
   }
 };
 
-std::shared_ptr<client> client::create(std::string ip, unsigned short port)
+std::shared_ptr<client> client::create()
 {
-  return make_shared<client_imp>(ip, port);
+  return make_shared<client_imp>();
 }
 
 } // namespace rpc

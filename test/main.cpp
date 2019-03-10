@@ -27,7 +27,7 @@ void test()
     auto add = [](int a, int b, int c) -> int { 
         cout << __func__ << " : "<< a + b  + c << endl;
         return a + b + c; };
-    auto sub = [](const string & a, int b) {
+    auto sub = [](const string &a, int b) {
         cout << __func__ << " : " << a << b << endl;
         return b;
     };
@@ -42,10 +42,14 @@ void test()
     server->add_handler("sub", sub);
     server->add_handler("hello", hello);
 
+    std::thread job1([&]() { server->run(); });
+
     // server.call("add", 1, 2, 3);
     // server.call("sub", 10, 6);
     // server.call("hello", "Hello C++ 17");
-    auto client = rpc::client::create("localhost", 8500);
+    auto client = rpc::client::create();
+
+    client->connect("localhost", 8500);
 
     auto ret = client->call(0, "add", 1, 2, "3", string("4"), 5.0f);
 
@@ -58,4 +62,6 @@ void test()
     //client->async_call("add", make_tuple(1, 2, 3), []() { });
 
     //server->exec(obj.first, obj.second);
+
+    job1.join();    
 }
