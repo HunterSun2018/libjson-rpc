@@ -46,7 +46,7 @@ public:
     async_write(js.to_string());
 
     async_read();
-    
+
     f();
   }
 
