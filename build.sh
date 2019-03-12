@@ -1,7 +1,7 @@
 mkdir build;
 cd build;
 ../configure CXXFLAGS="-g -DDEBUG" 
-make
+make V=0
 
 echo "mkdir bin -p" > cp2bin.sh
 echo "cp src/.libs/librpc.* bin/" >> cp2bin.sh

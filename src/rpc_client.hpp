@@ -39,16 +39,14 @@ public:
   template <class Tuple, typename Func>
   void async_call(uint32_t id, const std::string &method, Tuple &&t, Func &&f)
   {
-    std::ostringstream oss;
+    json_stream js(id, method);
 
-    //((oss << args << " "), ...);
-    std::apply([&](auto &... args) { ((oss << args << " "), ...); }, t);
+    std::apply([&](auto &... args) { ((js << args), ...); }, t);
 
-    async_write(oss.str());
+    async_write(js.to_string());
 
     async_read();
-    //return std::make_pair(id, oss.str());
-
+    
     f();
   }
 
