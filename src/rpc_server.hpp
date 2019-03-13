@@ -2,21 +2,7 @@
 #define STRATUM_SERVER_H
 
 #include "std.hpp"
-//#include "rpc_base.hpp"
-
-namespace detail
-{
-
-template <typename>
-struct function_meta;
-
-template <typename R, typename... T>
-struct function_meta<std::function<R(T...)>>
-{
-    using return_type = std::decay_t<R>;
-    using arguments_tuple_type = std::tuple<std::decay_t<T>...>;
-};
-} // namespace detail
+#include "utils.hpp"
 
 namespace rpc
 {
@@ -51,7 +37,7 @@ struct server //: public server_base
         auto wrapper = [f = std::move(func)](std::string request) {
             std::function func{std::move(f)};
 
-            using function_meta = detail::function_meta<decltype(func)>;
+            using function_meta = utils::detail::function_meta<decltype(func)>;
             using arguments_tuple_type = typename function_meta::arguments_tuple_type;
 
             arguments_tuple_type data;

@@ -28,6 +28,20 @@ std::string format(const std::string &format, Args... args)
     snprintf(buf.get(), size, format.c_str(), args...);
     return std::string(buf.get(), buf.get() + size - 1); // We don't want the '\0' inside
 }
+
+namespace detail
+{
+template <typename>
+struct function_meta;
+
+template <typename R, typename... T>
+struct function_meta<std::function<R(T...)>>
+{
+    using return_type = std::decay_t<R>;
+    using arguments_tuple_type = std::tuple<std::decay_t<T>...>;
+};
+} // namespace detail
+
 } // namespace utils
 
 #define CHECK_WALLY_RET(r) \
@@ -37,5 +51,5 @@ std::string format(const std::string &format, Args... args)
 #define THROW_ERROR(x) throw runtime_error(utils::format("%s, %s : %d in %s", x, __func__, __LINE__, __FILE__));
 
 #define DEBUGGING_STRING utils::format("%s : %d in %s", __func__, __LINE__, __FILE__)
-        
+
 #endif

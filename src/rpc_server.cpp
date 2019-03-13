@@ -4,7 +4,6 @@
 #include "std.hpp"
 #include "jsonrp.hpp"
 #include "rpc_server.hpp"
-#include "utils.h"
 //
 // header files for boost
 //

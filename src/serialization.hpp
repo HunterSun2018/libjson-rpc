@@ -48,5 +48,24 @@ class json_stream
     jsonrpcpp::Request m_request;
     Json m_params;
 };
+
+class json_response
+{
+    public:
+        json_response(const std::string & stream)
+        {
+            jsonrpcpp::Parser parse;
+            jsonrpcpp::entity_ptr entity = parse.parse(stream);
+            if(entity && entity->is_response())
+            {
+                jsonrpcpp::response_ptr response = std::dynamic_pointer_cast<jsonrpcpp::Response>(entity);
+
+                m_result = response->result.dump();
+            }
+            
+        }
+    private:
+        std::string m_result;
+};
 } // namespace rpc
 #endif

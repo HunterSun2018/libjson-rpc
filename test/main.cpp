@@ -59,9 +59,20 @@ void test()
 
     cout << ret1 << endl;
 
-    //client->async_call("add", make_tuple(1, 2, 3), []() { });
+    auto connect_handler = [&](auto status) {
+        client->async_call(0, "add", make_tuple(1, 2, 3), [&](rpc::client::status s, int ret) {
+            if (!s.error)
+            {
+            }
+        });
+    };
+
+    client->async_connect("localhost", 8500, connect_handler);
+
+    client->run();
+    cout << "client run ending" << endl;
 
     //server->exec(obj.first, obj.second);
 
-    job1.join();    
+    job1.join();
 }
