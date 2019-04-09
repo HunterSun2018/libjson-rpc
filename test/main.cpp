@@ -49,7 +49,7 @@ void test()
     // server.call("hello", "Hello C++ 17");
     auto client = rpc::client::create("localhost", 8500);
 
-    client->connect("localhost", 8500);
+    //client->connect("localhost", 8500);
 
     auto ret = client->call(0, "add", 1, 2, "3", string("4"), 5.0f);
 
@@ -65,7 +65,7 @@ void test()
             }
         });
 
-    client->run();
+    //client->run();
     cout << "client run ending" << endl;
 
     //server->exec(obj.first, obj.second);

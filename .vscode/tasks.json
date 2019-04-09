@@ -6,7 +6,7 @@
         {
             "label": "build",
             "type": "shell",
-            "command": "cd build && make && ./cp2bin.sh",
+            "command": "cd build && make V=0 && ./cp2bin.sh",
             "group": {
                 "kind": "build",
                 "isDefault": true

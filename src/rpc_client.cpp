@@ -22,6 +22,11 @@ public:
   {
   }
 
+  virtual std::string run(uint32_t id, const std::string &method, json_stream &stream)
+  {
+    return "";
+  }
+
   virtual void connect(const std::string &ip, unsigned short port)
   {
     tcp::resolver resolver(m_io_service);
@@ -30,24 +35,10 @@ public:
     //tcp::endpoint endpoint(endpoint_iterator, port);
   }
 
-  virtual void async_connect(const std::string &ip, unsigned short port, connect_handler handler)
+  virtual void async_run(uint32_t id, const std::string &method, json_stream &stream, callback cb) override
   {
-    tcp::resolver resolver(m_io_service);
-    auto endpoint_iterator = resolver.resolve({ip, to_string(port)});
-
-    boost::asio::async_connect(m_socket, endpoint_iterator,
-                               [&, this](boost::system::error_code ec, tcp::resolver::iterator) {
-                                 if (!ec)
-                                 {
-                                   handler({ec.value(), ec.message()});
-                                 }
-                               });
-
-    //std::thread t([&](){ m_io_service.run(); });
-    //t.detach();
+    async_connect(cb);
   }
-
-  virtual void async_run(uint32_t id, const std::string &method, json_stream &stream, std::function<void(status & s, std::string)> f) override;
 
   virtual void run()
   {
@@ -60,18 +51,29 @@ protected:
     cout << request << endl;
   }
 
-  virtual void async_write(std::string request, write_handler &&handler)
+  void async_connect(callback cb)
   {
-    boost::asio::async_write(m_socket,
-                             boost::asio::buffer(request.c_str(), request.length() + 1),
-                             [&, cb = move(handler)](boost::system::error_code ec, std::size_t /*length*/) {
-                               cb({ec.value(), ec.message()});
+    tcp::resolver resolver(m_io_service);
+    auto endpoint_iterator = resolver.resolve({m_server_ip, to_string(m_server_port)});
 
-                               if (ec)
-                               {
-                                 m_socket.close();
-                               }
-                             });
+    boost::asio::async_connect(
+        m_socket,
+        endpoint_iterator,
+        [&, this](boost::system::error_code ec, tcp::resolver::iterator) {
+          if (!ec)
+          {
+            do_write();
+          }
+          else
+          {
+            status s{ec.value(), ec.message()};
+
+            cb(s, "");
+          }
+        });
+
+    //std::thread t([&](){ m_io_service.run(); });
+    //t.detach();
   }
 
   virtual std::string read()
@@ -79,17 +81,17 @@ protected:
     return "";
   }
 
-  virtual void async_read(read_handler &&handler)
+  virtual void async_read()
   {
     async_read_until(m_socket, m_streambuf, "\n",
-                     [&, cb = move(handler)](const boost::system::error_code &ec, std::size_t /*length*/) {
+                     [&](const boost::system::error_code &ec, std::size_t /*length*/) {
                        if (!ec)
                        {
                          std::istream is(&m_streambuf);
                          //string response(istreambuf_iterator<char>(m_streambuf), istreambuf_iterator<char>() );
                          string response = string(istreambuf_iterator<char>(is), istreambuf_iterator<char>());
 
-                         cb({ec.value(), ec.message()}, response);
+                         //cb({ec.value(), ec.message()}, response);
                        }
                        else
                        {
@@ -170,33 +172,14 @@ private:
   tcp::socket m_socket;
   boost::asio::streambuf m_streambuf;
   message_deque m_write_msgs;
+  string m_server_ip;
+  ushort m_server_port;
 };
 
-void client_imp::async_run(uint32_t id, const std::string &method, json_stream &stream, std::function<void(status & s, std::string)> f)
-{
-  async_connect("", 0, [&](status s) {
-    if (s.error == 0)
-    {
-      //
-      //  aysnc write json stream to network
-      //
-      async_write(stream.to_string(), [&](auto status) {
-        if (status.error == 0)
-        {
-          //
-          //  async read json stream from network
-          //
-          async_read([&](auto status, const std::string &response) {
-            f(status, response);
-          });
-        }
-      });
-    }
-    else
-    {
-    }
-  });
-}
+// void client_imp::async_run(uint32_t id, const std::string &method, json_stream &stream, std::function<void(status &s, std::string)> f)
+// {
+//   async_connect();
+// }
 
 std::shared_ptr<client> client::create(std::string ip, uint16_t port)
 {
