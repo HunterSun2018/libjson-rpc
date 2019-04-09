@@ -47,7 +47,7 @@ void test()
     // server.call("add", 1, 2, 3);
     // server.call("sub", 10, 6);
     // server.call("hello", "Hello C++ 17");
-    auto client = rpc::client::create();
+    auto client = rpc::client::create("localhost", 8500);
 
     client->connect("localhost", 8500);
 
@@ -59,15 +59,11 @@ void test()
 
     cout << ret1 << endl;
 
-    auto connect_handler = [&](auto status) {
-        client->async_call(0, "add", make_tuple(1, 2, 3), [&](rpc::client::status s, int ret) {
+    client->async_call(0, "add", make_tuple(1, 2, 3), [&](rpc::client::status s, int ret) {
             if (!s.error)
             {
             }
         });
-    };
-
-    client->async_connect("localhost", 8500, connect_handler);
 
     client->run();
     cout << "client run ending" << endl;

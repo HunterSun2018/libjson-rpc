@@ -16,9 +16,9 @@ class client_imp : public client
 public:
   virtual ~client_imp() {}
 
-  client_imp() : //boost::asio::io_service &io_service
-                 //m_io_service(io_service),
-                 m_socket(m_io_service)
+  client_imp(std::string ip, uint16_t port) : //boost::asio::io_service &io_service
+                                              //m_io_service(io_service),
+                                              m_socket(m_io_service)
   {
   }
 
@@ -47,6 +47,8 @@ public:
     //t.detach();
   }
 
+  virtual void async_run(uint32_t id, const std::string &method, json_stream &stream, std::function<void(status & s, std::string)> f) override;
+
   virtual void run()
   {
     m_io_service.run();
@@ -61,7 +63,7 @@ protected:
   virtual void async_write(std::string request, write_handler &&handler)
   {
     boost::asio::async_write(m_socket,
-                             boost::asio::buffer(request.c_str(), request.length()),
+                             boost::asio::buffer(request.c_str(), request.length() + 1),
                              [&, cb = move(handler)](boost::system::error_code ec, std::size_t /*length*/) {
                                cb({ec.value(), ec.message()});
 
@@ -85,9 +87,9 @@ protected:
                        {
                          std::istream is(&m_streambuf);
                          //string response(istreambuf_iterator<char>(m_streambuf), istreambuf_iterator<char>() );
-                         string response = "";
+                         string response = string(istreambuf_iterator<char>(is), istreambuf_iterator<char>());
 
-                         cb( {ec.value(), ec.message()}, response);
+                         cb({ec.value(), ec.message()}, response);
                        }
                        else
                        {
@@ -170,9 +172,35 @@ private:
   message_deque m_write_msgs;
 };
 
-std::shared_ptr<client> client::create()
+void client_imp::async_run(uint32_t id, const std::string &method, json_stream &stream, std::function<void(status & s, std::string)> f)
 {
-  return make_shared<client_imp>();
+  async_connect("", 0, [&](status s) {
+    if (s.error == 0)
+    {
+      //
+      //  aysnc write json stream to network
+      //
+      async_write(stream.to_string(), [&](auto status) {
+        if (status.error == 0)
+        {
+          //
+          //  async read json stream from network
+          //
+          async_read([&](auto status, const std::string &response) {
+            f(status, response);
+          });
+        }
+      });
+    }
+    else
+    {
+    }
+  });
+}
+
+std::shared_ptr<client> client::create(std::string ip, uint16_t port)
+{
+  return make_shared<client_imp>(ip, port);
 }
 
 } // namespace rpc
