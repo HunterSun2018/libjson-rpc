@@ -33,7 +33,7 @@ void test()
     };
     auto hello = [](string s) {
         cout << __func__ << " : " << s << endl;
-        return s;
+        return string("Hello") + s;
     };
 
     auto server = rpc::server::create(8500);
@@ -60,12 +60,27 @@ void test()
     cout << ret1 << endl;
 
     client->async_call(0, "add", make_tuple(1, 2, 3), [&](rpc::client::status s, int ret) {
-            if (!s.error)
-            {
-            }
-        });
+        if (!s.error)
+        {
+            cout << "call methoed 'add' and then get result : " << ret << endl;
+        }
+    });
 
-    //client->run();
+    client->async_call(1, "sub", make_tuple(10, 5), [&](rpc::client::status s, int ret) {
+        if (!s.error)
+        {
+            cout << "call methoed 'sub' and then get result : " << ret << endl;
+        }
+    });
+
+    client->async_call(2, "hello", make_tuple("lib_json_rpc"), [&](rpc::client::status s, string ret) {
+        if (!s.error)
+        {
+            cout << "call methoed 'hello' and then get result : " << ret << endl;
+        }
+    });
+
+    client->run();
     cout << "client run ending" << endl;
 
     //server->exec(obj.first, obj.second);

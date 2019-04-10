@@ -20,15 +20,15 @@ decltype(auto) do_stuff(ITR &&itr)
 
 namespace rpc
 {
-class json_stream
+class json_request
 {
   public:
-    json_stream(uint32_t id, const std::string &method) : m_request(id, method, Json())
+    json_request(uint32_t id, const std::string &method) : m_request(id, method, Json())
     {
     }
 
     template <typename T>
-    json_stream &operator<<(const T &t)
+    json_request &operator<<(const T &t)
     {
         if constexpr (is_pair<T>::value)
             m_params[t.first] = t.second;
@@ -42,6 +42,18 @@ class json_stream
     {
         m_request.params = m_params;
         return m_request.to_json().dump();
+    }
+
+    template<typename T>
+    json_request & operator >> (T & t)
+    {
+        //m_params.get
+        return *this;
+    }
+
+    uint32_t id()
+    {
+        return m_request.id.int_id;
     }
 
   private:

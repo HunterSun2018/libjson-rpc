@@ -1,8 +1,9 @@
-#ifndef STRATUM_SERVER_H
-#define STRATUM_SERVER_H
+#ifndef RPC_SERVER_H
+#define RPC_SERVER_H
 
 #include "std.hpp"
 #include "utils.hpp"
+#include "jsonrp.hpp"
 
 namespace rpc
 {
@@ -23,43 +24,48 @@ struct server //: public server_base
 
     virtual void stop() = 0;
 
-    
     template <typename TFunc>
-    void add_handler(std::string id, TFunc func)
+    void add_handler(std::string name, TFunc func)
     {
-        if (m_handlers.find(id) != std::end(m_handlers))
+        if (m_handlers.find(name) != std::end(m_handlers))
         {
             throw std::invalid_argument{"[" + std::string{__func__} + "] Failed to add handler. "
-                                                                      "The id \"" +
-                                        id + "\" already exists."};
+                                                                      "The function \"" +
+                                        name + "\" already exists."};
         }
 
-        auto wrapper = [f = std::move(func)](std::string request) {
+        auto wrapper = [f = std::move(func)](std::string request) -> Json {
             std::function func{std::move(f)};
 
             using function_meta = utils::detail::function_meta<decltype(func)>;
             using arguments_tuple_type = typename function_meta::arguments_tuple_type;
+            //using return_type = typename function_meta::return_type;
 
-            arguments_tuple_type data;
+            arguments_tuple_type arguments;
             std::istringstream iss(request);
 
-            std::apply([&](auto &... args) { ((iss >> args), ...); }, data);
+            std::apply([&](auto &... args) { ((iss >> args), ...); }, arguments);
 
-            auto ret = std::apply(std::move(func), std::move(data));
-            ret = decltype(ret)();
+            auto ret = std::apply(std::move(func), std::move(arguments));
+            
+            Json result;
+                        
+            result = ret;
+
+            return result;
         };
 
-        m_handlers.emplace(std::move(id), std::move(wrapper));
+        m_handlers.emplace(std::move(name), std::move(wrapper));
     }
 
     template <typename... T>
-    auto call(std::string id, T... args)
+    auto call(std::string name, T... args)
     {
         std::ostringstream oss;
 
         ((oss << args << " "), ...);
 
-        auto iter = m_handlers.find(id);
+        auto iter = m_handlers.find(name);
 
         if (iter != std::end(m_handlers))
         {
@@ -67,18 +73,20 @@ struct server //: public server_base
         }
     }
 
-    auto exec(const std::string &id, const std::string &serialization)
+    Json exec(const std::string &name, const std::string &serialization)
     {
-        auto iter = m_handlers.find(id);
+        auto iter = m_handlers.find(name);
 
         if (iter != std::end(m_handlers))
         {
             return iter->second(serialization);
         }
+        else
+            throw std::runtime_error("method not found");        
     }
 
   private:
-    typedef std::function<void(std::string)> handler_type;
+    typedef std::function<Json(std::string)> handler_type;
     std::map<std::string, handler_type> m_handlers;
 };
 

@@ -14,14 +14,16 @@ public:
 
   virtual ~client() {}
 
+  virtual void run() = 0;
+
+  template <typename... T>
+  auto call(uint32_t id, const std::string &method, T... args);
+
   struct status
   {
     int32_t error;
     std::string message;
   };
-
-  template <typename... T>
-  auto call(uint32_t id, const std::string &method, T... args);
 
   /**
    *  async call a RPC method
@@ -40,11 +42,17 @@ public:
   template <class Tuple, typename F>
   void async_call(uint32_t id, const std::string &method, Tuple &&t, F f);
 
-protected:
-  virtual std::string run(uint32_t id, const std::string &method, json_stream &stream) = 0;
+  template <typename TFunc>
+  void register_notify(std::string id, TFunc func)
+  {
 
-  typedef std::function<void(const status &s, std::string)> callback;
-  virtual void async_run(uint32_t id, const std::string &method, json_stream &stream, callback cb) = 0;
+  }
+
+protected:
+  virtual std::string run(const std:: string & request) = 0;
+
+  typedef std::function<void(const status &s, Json)> callback;
+  virtual void async_remote_call(json_request & request, callback cb) = 0;
 };
 
 typedef std::shared_ptr<client> client_ptr;
@@ -53,11 +61,11 @@ template <typename... T>
 auto client::call(uint32_t id, const std::string &method, T... args)
 {
 
-  json_stream js(id, method);
+  json_request js(id, method);
 
   ((js << args), ...);
 
-  std::string response = run(id, method, js);
+  std::string response = run(js.to_string());
 
   std::istringstream iss(response);
   //arg2_type ret;
@@ -71,13 +79,14 @@ auto client::call(uint32_t id, const std::string &method, T... args)
 template <class Tuple, typename F>
 void client::async_call(uint32_t id, const std::string &method, Tuple &&t, F f)
 {
-  json_stream js(id, method);
+  json_request request(id, method);
+  
   //
   //  serialize all arguments to JSON stream
   //
-  std::apply([&](auto &... args) { ((js << args), ...); }, t);
+  std::apply([&](auto &... args) { ((request << args), ...); }, t);
 
-  async_run(id, method, js, [&](const status &s, std::string response) {
+  async_remote_call(request, [&](const status &s, Json result) {
     // move callback to function object
     std::function func{std::move(f)};
     //
@@ -89,13 +98,8 @@ void client::async_call(uint32_t id, const std::string &method, Tuple &&t, F f)
     //
     //  deserialize response to JSON stream
     //
-    std::istringstream iss(response);
-    arg2_type ret;
+    arg2_type ret = result.get<arg2_type>();
 
-    iss >> ret;
-    //
-    //  invoke callback function object
-    //
     func(s, ret);
   });
 }

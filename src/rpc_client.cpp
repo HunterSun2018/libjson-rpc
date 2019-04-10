@@ -1,6 +1,7 @@
 #include "rpc_client.hpp"
 #include <boost/asio.hpp>
 #include <memory>
+#include "jsonrp.hpp"
 
 using namespace std;
 using namespace boost::asio;
@@ -20,14 +21,34 @@ public:
                                               //m_io_service(io_service),
                                               m_socket(m_io_service)
   {
+    m_server_ip = ip;
+    m_server_port = port;
+
+    async_connect();
   }
 
-  virtual std::string run(uint32_t id, const std::string &method, json_stream &stream)
+  virtual std::string run(const std::string &request) override
   {
+    cout << request << endl;
     return "";
   }
 
-  virtual void connect(const std::string &ip, unsigned short port)
+  virtual void async_remote_call(json_request &request, callback cb) override
+  {
+    cout << request.to_string() << endl;
+
+    m_callback_map[request.id()] = cb;
+
+    write(request.to_string());
+  }
+
+  virtual void run() override
+  {
+    m_io_service.run();
+  }
+
+protected:
+  void connect(const std::string &ip, unsigned short port)
   {
     tcp::resolver resolver(m_io_service);
     auto endpoint_iterator = resolver.resolve({ip, to_string(port)});
@@ -35,23 +56,7 @@ public:
     //tcp::endpoint endpoint(endpoint_iterator, port);
   }
 
-  virtual void async_run(uint32_t id, const std::string &method, json_stream &stream, callback cb) override
-  {
-    async_connect(cb);
-  }
-
-  virtual void run()
-  {
-    m_io_service.run();
-  }
-
-protected:
-  virtual void write(std::string request)
-  {
-    cout << request << endl;
-  }
-
-  void async_connect(callback cb)
+  void async_connect()
   {
     tcp::resolver resolver(m_io_service);
     auto endpoint_iterator = resolver.resolve({m_server_ip, to_string(m_server_port)});
@@ -62,109 +67,98 @@ protected:
         [&, this](boost::system::error_code ec, tcp::resolver::iterator) {
           if (!ec)
           {
-            do_write();
+            read();
           }
           else
           {
-            status s{ec.value(), ec.message()};
+            //status s{ec.value(), ec.message()};
 
-            cb(s, "");
+            //cb(s, "");
+            cout << ec.message() << endl;
+            m_socket.close();
           }
         });
-
-    //std::thread t([&](){ m_io_service.run(); });
-    //t.detach();
   }
 
-  virtual std::string read()
+  void parse_response(const string & json_obj)
   {
-    return "";
-  }
+    jsonrpcpp::Parser parse;
+    jsonrpcpp::entity_ptr entity = parse.parse(json_obj);
 
-  virtual void async_read()
+    if(entity && entity->is_response())
+    {
+      jsonrpcpp::response_ptr  response = dynamic_pointer_cast<jsonrpcpp::Response>(entity);
+
+      auto iter = m_callback_map.find(response->id.int_id);
+      if(iter != end(m_callback_map))
+      {
+        status s = { 0, ""};
+
+        iter->second(s, response->result);
+      }      
+    }
+
+    //cb({ec.value(), ec.message()}, response);
+
+    cout << json_obj << endl;
+  }
+  virtual void read()
   {
-    async_read_until(m_socket, m_streambuf, "\n",
-                     [&](const boost::system::error_code &ec, std::size_t /*length*/) {
-                       if (!ec)
-                       {
-                         std::istream is(&m_streambuf);
-                         //string response(istreambuf_iterator<char>(m_streambuf), istreambuf_iterator<char>() );
-                         string response = string(istreambuf_iterator<char>(is), istreambuf_iterator<char>());
+    boost::asio::async_read_until(
+        m_socket,
+        m_streambuf,
+        "\0",
+        [&](const boost::system::error_code &ec, std::size_t length) {
+          if (!ec)
+          {
+            std::istream is(&m_streambuf);
+            string response = string(istreambuf_iterator<char>(is), istreambuf_iterator<char>());
 
-                         //cb({ec.value(), ec.message()}, response);
-                       }
-                       else
-                       {
-                         m_socket.close();
-                       }
-                     });
+            parse_response(response);
+
+            read();
+          }
+          else
+          {
+            m_socket.close();
+          }
+        });
   }
 
-private:
-  // void do_connect(tcp::resolver::iterator endpoint_iterator)
-  // {
-  //   boost::asio::async_connect(m_socket, endpoint_iterator,
-  //                              [this](boost::system::error_code ec, tcp::resolver::iterator) {
-  //                                if (!ec)
-  //                                {
-  //                                  do_read_header();
-  //                                }
-  //                              });
-  // }
+  void write(std::string request)
+  {
+    m_io_service.post(
+        [this, request]() {
+          bool write_in_progress = !m_write_msgs.empty();
+          m_write_msgs.push_back(request);
 
-  // void do_read_header()
-  // {
-  //   boost::asio::async_read(m_socket,
-  //                           boost::asio::buffer(read_msg_.data(), chat_message::header_length),
-  //                           [this](boost::system::error_code ec, std::size_t /*length*/) {
-  //                             if (!ec && read_msg_.decode_header())
-  //                             {
-  //                               do_read_body();
-  //                             }
-  //                             else
-  //                             {
-  //                               m_socket.close();
-  //                             }
-  //                           });
-  // }
-
-  // void do_read_body()
-  // {
-  //   boost::asio::async_read(socket_,
-  //                           boost::asio::buffer(read_msg_.body(), read_msg_.body_length()),
-  //                           [this](boost::system::error_code ec, std::size_t /*length*/) {
-  //                             if (!ec)
-  //                             {
-  //                               std::cout.write(read_msg_.body(), read_msg_.body_length());
-  //                               std::cout << "\n";
-  //                               do_read_header();
-  //                             }
-  //                             else
-  //                             {
-  //                               socket_.close();
-  //                             }
-  //                           });
-  // }
+          if (!write_in_progress)
+          {
+            do_write();
+          }
+        });
+  }
 
   void do_write()
   {
-    boost::asio::async_write(m_socket,
-                             boost::asio::buffer(m_write_msgs.front().data(),
-                                                 m_write_msgs.front().length()),
-                             [this](boost::system::error_code ec, std::size_t /*length*/) {
-                               if (!ec)
-                               {
-                                 m_write_msgs.pop_front();
-                                 if (!m_write_msgs.empty())
-                                 {
-                                   do_write();
-                                 }
-                               }
-                               else
-                               {
-                                 m_socket.close();
-                               }
-                             });
+    boost::asio::async_write(
+        m_socket,
+        boost::asio::buffer(m_write_msgs.front().data(),
+                            m_write_msgs.front().length() + 1), // buffer contains the end of character '\0'
+        [this](boost::system::error_code ec, std::size_t /*length*/) {
+          if (!ec)
+          {
+            m_write_msgs.pop_front();
+            if (!m_write_msgs.empty())
+            {
+              do_write();
+            }
+          }
+          else
+          {
+            m_socket.close();
+          }
+        });
   }
 
 private:
@@ -174,9 +168,11 @@ private:
   message_deque m_write_msgs;
   string m_server_ip;
   ushort m_server_port;
+
+  map<int, callback> m_callback_map;
 };
 
-// void client_imp::async_run(uint32_t id, const std::string &method, json_stream &stream, std::function<void(status &s, std::string)> f)
+// void client_imp::async_run(uint32_t id, const std::string &method, json_request &stream, std::function<void(status &s, std::string)> f)
 // {
 //   async_connect();
 // }

@@ -4,6 +4,7 @@
 #include "std.hpp"
 #include "jsonrp.hpp"
 #include "rpc_server.hpp"
+#include <memory>
 //
 // header files for boost
 //
@@ -27,7 +28,8 @@ typedef deque<string> message_deque;
 class session : public std::enable_shared_from_this<session>
 {
   public:
-    session(tcp::socket &&socket) : m_socket(move(socket))
+    session(tcp::socket &&socket, server_ptr server) : m_socket(move(socket)),
+                                                       m_server(server)
     {
     }
 
@@ -40,65 +42,59 @@ class session : public std::enable_shared_from_this<session>
     {
         //m_mine_pool.join(shared_from_this());
 
-        read_json();
-    }
-
-    //
-    //  deliver mining message
-    //
-    virtual void deliver(const string &json_rpc)
-    {
-        bool write_in_progress = !m_msgs.empty();
-
-        m_msgs.push_back(json_rpc + "\n"); //append "\n" as a newline
-
-        if (!write_in_progress)
-        {
-            write_json();
-        }
+        read();
     }
 
   protected:
-    void read_json()
+    void read()
     {
         auto self(shared_from_this());
 
         //  the follow variable "self" captured in lambda adds the reference count during async reading
         //  once the seesion disconnects it will reduce the reference count and results in session deconstruction
-        async_read_until(m_socket, m_streambuf, "\n",
-                         [this, self](const boost::system::error_code &ec, const long unsigned int &a) {
-                             if (!ec)
-                             {
-                                 std::istream input(&m_streambuf);
-                                 string line;
-                                 getline(input, line);
+        async_read_until(
+            m_socket,
+            m_streambuf, '\0',
+            [this, self](const boost::system::error_code &ec, size_t length) {
+                if (!ec)
+                {
+                    std::istream is(&m_streambuf);
+                    auto iter = istreambuf_iterator<char>(is);
+                    string request('\0', length+1);
+                    
+                    for(size_t i=0; i<length; i++)
+                         request += *iter++;                    
+                                        
+                    //vector<char> buffer(length + 1);
+                    //is.read(&buffer[0], length);
+                    //request = &buffer[0];
 
-                                 //m_mine_pool.rpc_call(line, shared_from_this());
+                    parse_json(request);
 
-                                 read_json();
-                             }
-                             else
-                             {
-                                 //m_mine_pool.leave(shared_from_this());
-                             }
-                         });
+                    read();
+                }
+                else
+                {
+                    //m_mine_pool.leave(shared_from_this());
+                }
+            });
     }
 
-    void write_json()
+    void write()
     {
         auto self(shared_from_this());
 
         async_write(m_socket,
-                    buffer(m_msgs.front().data(), m_msgs.front().length()),
+                    buffer(m_msgs.front().data(), m_msgs.front().length() + 1), //contains char '\0' for seprating message
                     [this, self](boost::system::error_code ec, size_t size) {
                         if (!ec)
                         {
-                            assert(size == m_msgs.front().length());
+                            assert(size - 1 == m_msgs.front().length());
 
                             m_msgs.pop_front();
 
                             if (!m_msgs.empty())
-                                write_json();
+                                write();
                         }
                         else
                         {
@@ -107,13 +103,68 @@ class session : public std::enable_shared_from_this<session>
                     });
     }
 
+    void parse_json(const string &json_obj)
+    {
+        string ret;
+
+        try
+        {
+            jsonrpcpp::Parser parse;
+            jsonrpcpp::entity_ptr entity = parse.parse(json_obj);
+            if (entity && entity->is_request())
+            {
+                jsonrpcpp::request_ptr request = dynamic_pointer_cast<jsonrpcpp::Request>(entity);
+                ostringstream oss;
+
+                if (request->params.is_array())
+                {
+                    for (auto obj : request->params.param_array)
+                        oss << obj.dump() << " ";
+                }
+                else if (request->params.is_map())
+                {
+                    for (auto iter : request->params.param_map)
+                        oss << iter.second.dump() << " ";
+                }
+
+                auto result = m_server->exec(request->method, oss.str());
+
+                jsonrpcpp::Response response(*request, result);
+
+                ret = response.to_json().dump();
+            }
+        }
+        catch (const std::exception &e)
+        {
+            std::cerr << e.what() << '\n';
+            ret = e.what();
+        }
+
+        write_response(ret);
+    }
+
+    void write_response(const string &response)
+    {
+        cout << " Response: " << response << "\n";
+        bool write_in_progress = !m_msgs.empty();
+
+        m_msgs.push_back(response); //append "\n" as a newline
+
+        if (!write_in_progress)
+        {
+            write();
+        }
+    }
+
   private:
     tcp::socket m_socket;
     boost::asio::streambuf m_streambuf;
     message_deque m_msgs;
+    server_ptr m_server;
 };
 
-class server_imp : public server
+class server_imp : public server,
+                   public std::enable_shared_from_this<server_imp>
 {
   public:
     server_imp(unsigned short port = default_listen_port)
@@ -128,7 +179,7 @@ class server_imp : public server
     {
     }
 
-    virtual bool listen(unsigned short port)         //user:pwd
+    virtual bool listen(unsigned short port) //user:pwd
     {
         tcp::endpoint endpoint(tcp::v4(), port);
 
@@ -137,7 +188,7 @@ class server_imp : public server
         m_acceptor = tcp::acceptor(m_io_service, endpoint);
 
         BOOST_LOG_TRIVIAL(info) << DEBUGGING_STRING
-                                << "\n  Server init, port = " << port                                
+                                << "\n  Server init, port = " << port
                                 << endl;
 
         return true;
@@ -168,7 +219,7 @@ class server_imp : public server
         m_acceptor.async_accept(m_socket, [this](boost::system::error_code ec) {
             if (!ec)
             {
-                make_shared<session>(move(m_socket))->start();
+                make_shared<session>(move(m_socket), shared_from_this())->start();
             }
 
             accept();
