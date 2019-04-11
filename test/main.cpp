@@ -1,6 +1,7 @@
 #include <iostream>
 #include "rpc_server.hpp"
 #include "rpc_client.hpp"
+#include "utils.hpp"
 
 using namespace std;
 
@@ -35,6 +36,8 @@ void test()
         cout << __func__ << " : " << s << endl;
         return string("Hello") + s;
     };
+    
+    
 
     auto server = rpc::server::create(8500);
 
@@ -42,7 +45,9 @@ void test()
     server->add_handler("sub", sub);
     server->add_handler("hello", hello);
 
-    std::thread job1([&]() { server->run(); });
+    server->run();
+    
+    //std::thread job1([&]() { utils::g_io_service::instance().run(); });
 
     // server.call("add", 1, 2, 3);
     // server.call("sub", 10, 6);
@@ -51,13 +56,13 @@ void test()
 
     //client->connect("localhost", 8500);
 
-    auto ret = client->call(0, "add", 1, 2, "3", string("4"), 5.0f);
+    // auto ret = client->call(0, "add", 1, 2, "3", string("4"), 5.0f);
 
-    cout << ret << endl;
+    // cout << ret << endl;
 
-    auto ret1 = client->call(0, "sub", make_pair("name", "tom"), make_pair("age", 10));
+    // auto ret1 = client->call(0, "sub", make_pair("name", "tom"), make_pair("age", 10));
 
-    cout << ret1 << endl;
+    // cout << ret1 << endl;
 
     client->async_call(0, "add", make_tuple(1, 2, 3), [&](rpc::client::status s, int ret) {
         if (!s.error)
@@ -80,10 +85,9 @@ void test()
         }
     });
 
-    client->run();
     cout << "client run ending" << endl;
 
-    //server->exec(obj.first, obj.second);
+    std::thread job1([&]() { utils::g_io_service::instance().run(); });
 
     job1.join();
 }

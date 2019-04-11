@@ -1,6 +1,7 @@
 #include "rpc_client.hpp"
 #include <boost/asio.hpp>
 #include <memory>
+#include "utils.hpp"
 #include "jsonrp.hpp"
 
 using namespace std;
@@ -17,8 +18,7 @@ class client_imp : public client
 public:
   virtual ~client_imp() {}
 
-  client_imp(std::string ip, uint16_t port) : //boost::asio::io_service &io_service
-                                              //m_io_service(io_service),
+  client_imp(std::string ip, uint16_t port) : m_io_service(utils::g_io_service::instance()),
                                               m_socket(m_io_service)
   {
     m_server_ip = ip;
@@ -40,11 +40,6 @@ public:
     m_callback_map[request.id()] = cb;
 
     write(request.to_string());
-  }
-
-  virtual void run() override
-  {
-    m_io_service.run();
   }
 
 protected:
@@ -80,39 +75,47 @@ protected:
         });
   }
 
-  void parse_response(const string & json_obj)
+  void parse_response(const string &json_obj)
   {
-    jsonrpcpp::Parser parse;
-    jsonrpcpp::entity_ptr entity = parse.parse(json_obj);
-
-    if(entity && entity->is_response())
+    try
     {
-      jsonrpcpp::response_ptr  response = dynamic_pointer_cast<jsonrpcpp::Response>(entity);
+      jsonrpcpp::Parser parse;
+      jsonrpcpp::entity_ptr entity = parse.parse(json_obj);
 
-      auto iter = m_callback_map.find(response->id.int_id);
-      if(iter != end(m_callback_map))
+      if (entity && entity->is_response())
       {
-        status s = { 0, ""};
+        jsonrpcpp::response_ptr response = dynamic_pointer_cast<jsonrpcpp::Response>(entity);
 
-        iter->second(s, response->result);
-      }      
+        auto iter = m_callback_map.find(response->id.int_id);
+        if (iter != end(m_callback_map))
+        {
+          status s = {0, ""};
+
+          iter->second(s, response->result);
+        }
+      }
+    }
+    catch (const std::exception &e)
+    {
+      std::cerr << e.what() << '\n';
     }
 
-    //cb({ec.value(), ec.message()}, response);
-
-    cout << json_obj << endl;
+    //cout << json_obj << endl;
   }
   virtual void read()
   {
     boost::asio::async_read_until(
         m_socket,
         m_streambuf,
-        "\0",
+        '\0',
         [&](const boost::system::error_code &ec, std::size_t length) {
           if (!ec)
           {
             std::istream is(&m_streambuf);
-            string response = string(istreambuf_iterator<char>(is), istreambuf_iterator<char>());
+            //string response = string(istreambuf_iterator<char>(is), istreambuf_iterator<char>());
+            string response(length, 0);
+
+            is.read(&response[0], length);
 
             parse_response(response);
 
@@ -162,7 +165,7 @@ protected:
   }
 
 private:
-  boost::asio::io_service m_io_service;
+  boost::asio::io_service &m_io_service;
   tcp::socket m_socket;
   boost::asio::streambuf m_streambuf;
   message_deque m_write_msgs;

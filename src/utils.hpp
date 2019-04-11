@@ -4,6 +4,7 @@
 #include <boost/log/trivial.hpp>
 #include <boost/log/core.hpp>
 #include <boost/log/trivial.hpp>
+#include <boost/asio.hpp>
 
 namespace utils
 {
@@ -41,6 +42,25 @@ struct function_meta<std::function<R(T...)>>
     using arguments_tuple_type = std::tuple<std::decay_t<T>...>;
 };
 } // namespace detail
+
+template <typename T>
+class Singleton
+{
+public:
+    Singleton() = delete;
+
+    Singleton(const Singleton &) = delete;
+
+    Singleton &operator=(const Singleton &) = delete;
+
+    static T &instance()
+    {
+        static T instance;
+        return instance;
+    }
+};
+
+typedef Singleton<boost::asio::io_service> g_io_service;
 
 } // namespace utils
 

@@ -14,8 +14,6 @@ public:
 
   virtual ~client() {}
 
-  virtual void run() = 0;
-
   template <typename... T>
   auto call(uint32_t id, const std::string &method, T... args);
 

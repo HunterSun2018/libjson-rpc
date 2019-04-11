@@ -4,11 +4,8 @@
 #include "std.hpp"
 #include "jsonrp.hpp"
 #include "rpc_server.hpp"
+#include "utils.hpp"
 #include <memory>
-//
-// header files for boost
-//
-#include <boost/asio.hpp>
 
 using namespace std;
 using namespace boost::asio;
@@ -27,7 +24,7 @@ typedef deque<string> message_deque;
 //
 class session : public std::enable_shared_from_this<session>
 {
-  public:
+public:
     session(tcp::socket &&socket, server_ptr server) : m_socket(move(socket)),
                                                        m_server(server)
     {
@@ -45,7 +42,7 @@ class session : public std::enable_shared_from_this<session>
         read();
     }
 
-  protected:
+protected:
     void read()
     {
         auto self(shared_from_this());
@@ -60,11 +57,11 @@ class session : public std::enable_shared_from_this<session>
                 {
                     std::istream is(&m_streambuf);
                     auto iter = istreambuf_iterator<char>(is);
-                    string request('\0', length+1);
-                    
-                    for(size_t i=0; i<length; i++)
-                         request += *iter++;                    
-                                        
+                    string request('\0', length + 1);
+
+                    for (size_t i = 0; i < length; i++)
+                        request += *iter++;
+
                     //vector<char> buffer(length + 1);
                     //is.read(&buffer[0], length);
                     //request = &buffer[0];
@@ -156,7 +153,7 @@ class session : public std::enable_shared_from_this<session>
         }
     }
 
-  private:
+private:
     tcp::socket m_socket;
     boost::asio::streambuf m_streambuf;
     message_deque m_msgs;
@@ -166,11 +163,11 @@ class session : public std::enable_shared_from_this<session>
 class server_imp : public server,
                    public std::enable_shared_from_this<server_imp>
 {
-  public:
+public:
     server_imp(unsigned short port = default_listen_port)
-        : m_socket(m_io_service),
-          m_acceptor(m_io_service, tcp::endpoint(tcp::v4(), port)), //default, listen port 8500
-          //m_mine_pool(bind(&create_http_client, &m_io_service), "", ""),           //defalut data dir
+        : m_io_service(utils::g_io_service::instance()),
+          m_socket(m_io_service),
+          m_acceptor(m_io_service, tcp::endpoint(tcp::v4(), port)), //default, listen port 8500          
           m_timer(m_io_service, boost::posix_time::seconds(timer_interval))
     {
     }
@@ -203,7 +200,7 @@ class server_imp : public server,
 
         BOOST_LOG_TRIVIAL(info) << DEBUGGING_STRING << "Server run" << endl;
 
-        m_io_service.run();
+        //m_io_service.run();
 
         return true;
     }
@@ -213,7 +210,7 @@ class server_imp : public server,
         return;
     }
 
-  protected:
+protected:
     void accept()
     {
         m_acceptor.async_accept(m_socket, [this](boost::system::error_code ec) {
@@ -236,8 +233,8 @@ class server_imp : public server,
         m_timer.async_wait(bind(&server_imp::timer_event_getblocktemplate, this));
     }
 
-  private:
-    boost::asio::io_service m_io_service;
+private:
+    boost::asio::io_service &m_io_service;
     tcp::socket m_socket;
     tcp::acceptor m_acceptor;
     enum
